@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>NEURAL TOWER • MODULAR HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  iframe {
+    background: rgba(0,0,0,0.35);
+  }
+  :root {
+    --glow: #38bdf8;
+    --text: #67e8f9;
+    --bg: #020617;
+    --panel: rgba(13,25,48,0.92);
+    --border: rgba(56,189,248,0.3);
+    --border-hot: rgba(56,189,248,0.7);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Orbitron', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    background-image: radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.06) 0%, transparent 60%),
+                      radial-gradient(ellipse at 70% 80%, rgba(56,189,248,0.04) 0%, transparent 60%);
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+    z-index: 9990;
+  }
+
+  /* ── LOCK SCREEN ── */
+  #lock {
+    position: fixed; inset: 0; background: #020617;
+    z-index: 9999; display: flex; justify-content: center;
+    align-items: center; flex-direction: column; gap: 18px;
+  }
+  #lock .lock-logo {
+    font-size: 11px; letter-spacing: 8px; color: var(--glow);
+    text-shadow: 0 0 30px var(--glow); margin-bottom: 8px;
+  }
+  #lock .lock-sub { font-size: 8px; letter-spacing: 4px; opacity: 0.4; }
+  #lock input {
+    background: rgba(0,0,0,0.6); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 20px; font-family: 'Orbitron';
+    border-radius: 4px; width: 300px; font-size: 11px; text-align: center;
+    outline: none; letter-spacing: 3px; transition: border-color .2s;
+  }
+  #lock input:focus { border-color: var(--glow); }
+  #lock .lock-btn {
+    background: transparent; border: 1px solid var(--glow); color: var(--glow);
+    padding: 11px 50px; font-family: 'Orbitron'; border-radius: 4px;
+    font-size: 10px; cursor: pointer; letter-spacing: 3px; transition: .15s;
+  }
+  #lock .lock-btn:hover { background: var(--glow); color: #000; }
+  #lock-err { color: #f87171; font-size: 9px; letter-spacing: 3px; min-height: 14px; }
+
+  .lock-ring {
+    width: 120px; height: 120px; border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; margin-bottom: 10px;
+    animation: ringPulse 3s ease-in-out infinite;
+  }
+  .lock-ring::before {
+    content: ''; position: absolute; inset: 8px; border-radius: 50%;
+    border: 1px solid rgba(56,189,248,0.15);
+  }
+  .lock-ring-icon { font-size: 36px; color: var(--glow); }
+  @keyframes ringPulse { 0%,100%{box-shadow:0 0 15px rgba(56,189,248,0.2)} 50%{box-shadow:0 0 40px rgba(56,189,248,0.5)} }
+
+  /* ── BOOT TERMINAL ── */
+  #boot {
+    position: fixed; inset: 0; background: #020617;
+    z-index: 9998; display: none; flex-direction: column;
+    justify-content: center; align-items: center; padding: 40px;
+  }
+  #boot-terminal {
+    width: 100%; max-width: 680px; font-family: 'Orbitron', monospace;
+    font-size: 11px; line-height: 2; color: var(--text); letter-spacing: 1px;
+  }
+  #boot-terminal .boot-line { opacity: 0; white-space: nowrap; overflow: hidden; }
+  #boot-terminal .boot-line.show { opacity: 1; }
+  #boot-terminal .boot-line.ok   { color: #4ade80; }
+  #boot-terminal .boot-line.warn { color: #fbbf24; }
+  #boot-terminal .boot-line.hi   { color: var(--glow); font-weight: 700; letter-spacing: 3px; }
+  #boot-terminal .boot-line.dim  { color: rgba(103,232,249,0.4); font-size: 9px; }
+  #boot-cursor { display: inline-block; width: 8px; height: 13px; background: var(--glow); vertical-align: middle; animation: blink .7s step-end infinite; margin-left: 3px; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  #boot-bar-wrap { margin-top: 18px; width: 100%; max-width: 680px; display: none; }
+  #boot-bar-label { font-size: 9px; letter-spacing: 2px; opacity: 0.5; margin-bottom: 6px; }
+  #boot-bar-bg { width: 100%; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  #boot-bar-fill { height: 100%; width: 0%; background: var(--glow); transition: width .05s linear; }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 44px;
+    background: rgba(2,6,23,0.97); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 10px; gap: 5px;
+    z-index: 5000; overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+  .tb-logo { font-size: 9px; letter-spacing: 4px; color: var(--glow); margin-right: 8px; white-space: nowrap; flex-shrink: 0; }
+  .tb-sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+  .tb-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; font-family: 'Orbitron'; font-size: 8px; letter-spacing: 1px;
+    border-radius: 3px; cursor: pointer; white-space: nowrap; transition: .15s;
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    touch-action: manipulation; min-height: 30px;
+  }
+  .tb-btn:active { background: rgba(56,189,248,0.12); border-color: var(--glow); color: var(--glow); }
+  .tb-btn.off { opacity: 0.35; }
+  .tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .tb-right span { font-size: 8px; letter-spacing: 1px; opacity: 0.45; }
+  .tb-right input[type=range] { width: 70px; accent-color: var(--glow); cursor: pointer; touch-action: manipulation; }
+
+  /* ── WINDOWS ── */
+  .window {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    backdrop-filter: blur(16px);
+    z-index: 100;
+    min-width: 140px;
+    min-height: 80px;
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+    display: flex; flex-direction: column;
+    /* Mobile: default to nearly full width, will be overridden by JS */
+  }
+  .window.focused {
+    border-color: var(--border-hot);
+    box-shadow: 0 0 25px rgba(56,189,248,0.12), inset 0 0 60px rgba(56,189,248,0.02);
+    z-index: 200;
+  }
+  .window.minimized .win-body { display: none; }
+
+  .win-header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(56,189,248,0.1); border-bottom: 1px solid var(--border);
+    padding: 10px 11px; cursor: move; user-select: none; flex-shrink: 0;
+    touch-action: none;
+  }
+  .win-title { font-size: 8px; letter-spacing: 3px; color: var(--glow); font-weight: 700; }
+  .win-controls { display: flex; gap: 8px; }
+  .wc {
+    width: 16px; height: 16px; border-radius: 50%; border: none;
+    cursor: pointer; opacity: 0.75; transition: opacity .1s, transform .1s;
+    flex-shrink: 0; touch-action: manipulation;
+  }
+  .wc:active { opacity: 1; transform: scale(1.2); }
+  .wc-close { background: #f87171; }
+  .wc-min   { background: #fbbf24; }
+  .wc-max   { background: #4ade80; }
+
+  .win-body { padding: 12px; flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  /* inputs/buttons inside win-body need tap to work */
+  .win-body input, .win-body button, .win-body textarea, .win-body select {
+    touch-action: manipulation;
+  }
+
+  .resize-handle {
+    position: absolute; bottom: 0; right: 0;
+    width: 36px; height: 36px;
+    cursor: se-resize; z-index: 10;
+    touch-action: none;
+  }
+  .resize-handle::after {
+    content: ''; position: absolute; bottom: 6px; right: 6px;
+    width: 10px; height: 10px;
+    border-right: 2px solid rgba(56,189,248,0.5); border-bottom: 2px solid rgba(56,189,248,0.5);
+  }
+
+  /* ── INNER UI ── */
+  .iui {
+    background: rgba(0,0,0,0.45); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 10px; font-family: 'Orbitron';
+    border-radius: 4px; font-size: 11px; outline: none;
+    transition: border-color .15s; width: 100%;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+  .iui:focus { border-color: var(--glow); }
+  .iui[type=file] { padding: 7px 8px; font-size: 9px; }
+  textarea.iui { height: 90px; resize: none; }
+
+  .btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 12px; font-family: 'Orbitron'; font-size: 9px; letter-spacing: 1px;
+    border-radius: 4px; cursor: pointer; transition: .15s; white-space: nowrap;
+    touch-action: manipulation; -webkit-appearance: none; min-height: 34px;
+  }
+  .btn:active { background: var(--glow); color: #000; border-color: var(--glow); }
+  .btn-sm { padding: 6px 8px; font-size: 8px; }
+  .btn-full { width: 100%; }
+
+  lbl { display: block; font-size: 8px; letter-spacing: 1px; opacity: 0.5; margin-bottom: 4px; margin-top: 8px; }
+
+  .bar-bg { width:100%; height:5px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; margin:5px 0; }
+  .bar-fill { height:100%; background:var(--glow); transition: width .4s ease, background .4s ease; }
+
+  .stat-label { font-size: 9px; display: flex; justify-content: space-between; margin-bottom: 1px; }
+  .stat-label span:last-child { color: rgba(255,255,255,0.6); }
+
+  .task-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 4px;
+    border-left: 2px solid var(--glow); margin: 4px 0; font-size: 9px; gap: 8px;
+    transition: opacity .3s;
+  }
+  .task-item.done { opacity: 0.35; border-left-color: #4ade80; text-decoration: line-through; }
+
+  .timer-big {
+    font-size: 56px; text-align: center; line-height: 1;
+    margin: 6px 0 10px; transition: color .3s;
+  }
+  .timer-big.warn { color: #fbbf24; }
+  .timer-big.danger { color: #f87171; }
+
+  .jarvis-out {
+    font-size: 10px; min-height: 55px; max-height: 120px; overflow-y: auto;
+    padding: 8px; border-left: 2px solid var(--glow);
+    background: rgba(0,0,0,0.35); border-radius: 0 4px 4px 0;
+    color: rgba(255,255,255,0.85); line-height: 1.55; margin-bottom: 8px;
+  }
+
+  #preview { width:100%; border-radius:4px; border:1px solid var(--border); margin: 6px 0; display:none; }
+  #notesSaved { font-size: 8px; color: #4ade80; opacity: 0; transition: opacity .3s; letter-spacing: 1px; }
+  #clockDisplay { font-size: 22px; text-align: center; margin: 4px 0 2px; letter-spacing: 3px; }
+  #dateDisplay { font-size: 8px; text-align: center; opacity: 0.5; letter-spacing: 2px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="lock">
+  <div class="lock-ring"><div class="lock-ring-icon">◈</div></div>
+  <div class="lock-logo" id="lock-tower-name">◈ NEURAL TOWER</div>
+  <div class="lock-sub" id="lock-sub-text">SECURE NEURAL HUD v3.0</div>
+
+  <div id="lock-login" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <input type="password" id="pw-login" placeholder="ENTER ACCESS CODE" onkeydown="if(event.key==='Enter')authLogin()">
+    <button class="lock-btn" onclick="authLogin()">INITIALIZE CORE</button>
+    <div style="font-size:8px;letter-spacing:2px;opacity:0.35;cursor:pointer;margin-top:-4px;" onclick="showRegister()">[ CREATE NEW PROFILE ]</div>
+  </div>
+
+  <div id="lock-register" style="display:none;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-size:8px;letter-spacing:3px;color:var(--glow);opacity:0.7;margin-bottom:-4px;">CREATE YOUR TOWER PROFILE</div>
+    <input class="iui" type="text" id="reg-username" placeholder="CHOOSE TOWER NAME"
+      style="width:300px;text-align:center;background:rgba(0,0,0,0.6);border:1px solid var(--border);color:var(--text);padding:12px 20px;font-family:Orbitron;border-radius:4px;font-size:11px;letter-spacing:3px;outline:none;"
+      onkeydown="if(event.key==='Enter')document.getElementById('reg-pw').focus()">
+    <input type="password" id="reg-pw" placeholder="SET ACCESS CODE"
+      style="background:rgba(0,0,0,0.6);border:1px solid var(--border);color:var(--text);padding:12px 20px;font-family:Orbitron;border-radius:4px;width:300px;font-size:11px;text-align:center;outline:none;letter-spacing:3px;"
+      onkeydown="if(event.key==='Enter')document.getElementById('reg-pw2').focus()">
+    <input type="password" id="reg-pw2" placeholder="CONFIRM ACCESS CODE"
+      style="background:rgba(0,0,0,0.6);border:1px solid var(--border);color:var(--text);padding:12px 20px;font-family:Orbitron;border-radius:4px;width:300px;font-size:11px;text-align:center;outline:none;letter-spacing:3px;"
+      onkeydown="if(event.key==='Enter')authRegister()">
+    <button class="lock-btn" onclick="authRegister()">CREATE TOWER</button>
+    <div id="has-account-link" style="font-size:8px;letter-spacing:2px;opacity:0.35;cursor:pointer;margin-top:-4px;display:none;" onclick="showLogin()">[ BACK TO LOGIN ]</div>
+  </div>
+
+  <div id="lock-err"></div>
+</div>
+
+<div id="boot">
+  <div id="boot-terminal"></div>
+  <div id="boot-bar-wrap">
+    <div id="boot-bar-label">INITIALIZING HUD CORE...</div>
+    <div id="boot-bar-bg"><div id="boot-bar-fill"></div></div>
+  </div>
+</div>
+
+<div id="toolbar">
+  <span class="tb-logo" id="tb-tower-name">◈ NEURAL TOWER</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="tb-win-timer"    onclick="toggleWin('win-timer')">⏱ CHRONO</button>
+  <button class="tb-btn" id="tb-win-tasks"    onclick="toggleWin('win-tasks')">◎ OBJECTIVES</button>
+  <button class="tb-btn" id="tb-win-jarvis"   onclick="toggleWin('win-jarvis')">⬡ NEURAL</button>
+  <button class="tb-btn" id="tb-win-clock"    onclick="toggleWin('win-clock')">◷ CLOCK</button>
+  <button class="tb-btn" id="tb-win-notes"    onclick="toggleWin('win-notes')">✎ NOTES</button>
+  <button class="tb-btn" id="tb-win-stats"    onclick="toggleWin('win-stats')">▣ BIOMETRICS</button>
+  <button class="tb-btn" id="tb-win-scanner"  onclick="toggleWin('win-scanner')">◉ SCANNER</button>
+  <button class="tb-btn" id="tb-win-spotify"  onclick="toggleWin('win-spotify')">♫ SPOTIFY</button>
+  <button class="tb-btn" id="tb-win-settings" onclick="toggleWin('win-settings')">⚙ CONFIG</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="tb-mute" onclick="toggleMute()">🔊 AUDIO</button>
+  <button class="tb-btn" onclick="resetLayout()" style="color:rgba(56,189,248,0.6)">⊞ RESET</button>
+  <div class="tb-right">
+    <span>OPACITY</span>
+    <input type="range" min="0.15" max="1" step="0.05" value="1" oninput="setOpacity(this.value)">
+  </div>
+</div>
+
+<div class="window" id="win-settings" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:320px;display:none;">
+  <div class="win-header" data-win="win-settings">
+    <span class="win-title">SYSTEM CONFIG</span>
+    <div class="win-controls">
+      <button class="wc wc-min" onclick="toggleMin('win-settings')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-settings')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <lbl>GEMINI API KEY</lbl>
+    <input class="iui" type="password" id="api-key-input" placeholder="Enter Gemini API Key...">
+    <div style="font-size:8px;opacity:0.4;margin:8px 0;line-height:1.6;">
+      Stored locally in your browser. Get a free key at
+      <a href="https://aistudio.google.com/" target="_blank" style="color:var(--glow);">Google AI Studio</a>.
+      Used for J.A.R.V.I.S. and Visual Scanner.
+    </div>
+    <button class="btn btn-full" onclick="saveSettings()">◈ SAVE CONFIG</button>
+    <div id="settingsSaved" style="font-size:8px;color:#4ade80;opacity:0;transition:opacity .3s;margin-top:6px;text-align:center;letter-spacing:1px;">CONFIG SAVED ✓</div>
+  </div>
+  <div class="resize-handle" data-resize="win-settings"></div>
+</div>
+
+<div class="window" id="win-timer" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:350px;">
+  <div class="win-header" data-win="win-timer">
+    <span class="win-title">CORE CHRONOGRAPH</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-timer')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-timer')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <div class="timer-big" id="td">25:00</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="btn" style="flex:1;" id="sb" onclick="toggleTimer()">START MISSION</button>
+      <button class="btn" onclick="resetTimer()">RESET</button>
+    </div>
+    <div class="bar-bg"><div id="timerBar" class="bar-fill" style="width:100%;"></div></div>
+    <lbl>SESSION DURATION (MINUTES)</lbl>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+      <input class="iui" type="number" id="durInput" value="25" min="1" max="240" style="width:80px;" onchange="setDuration()">
+      <input type="range" min="1" max="120" value="25" style="flex:1;accent-color:var(--glow);"
+        oninput="document.getElementById('durInput').value=this.value;setDuration()">
+    </div>
+  </div>
+  <div class="resize-handle" data-resize="win-timer"></div>
+</div>
+
+<div class="window" id="win-tasks" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:280px;display:none;">
+  <div class="win-header" data-win="win-tasks">
+    <span class="win-title">OBJECTIVE TRACKER</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-tasks')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-tasks')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <div style="display:flex;gap:6px;">
+      <input class="iui" type="text" id="taskInput" placeholder="IDENTIFY GOAL..." style="flex:1;"
+        onkeydown="if(event.key==='Enter')addTask()">
+      <button class="btn btn-sm" onclick="addTask()">ADD</button>
+    </div>
+    <div id="taskList" style="max-height:150px;overflow-y:auto;margin-top:6px;"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;">
+      <span style="font-size:8px;opacity:0.5;">MISSION PROGRESS</span>
+      <span style="font-size:8px;" id="taskPct">0 / 0</span>
+    </div>
+    <div class="bar-bg"><div id="focusBar" class="bar-fill" style="width:0%;"></div></div>
+    <button class="btn btn-sm" style="margin-top:6px;width:100%;" onclick="clearTasks()">CLEAR COMPLETED</button>
+  </div>
+  <div class="resize-handle" data-resize="win-tasks"></div>
+</div>
+
+<div class="window" id="win-jarvis" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:310px;display:none;">
+  <div class="win-header" data-win="win-jarvis">
+    <span class="win-title">NEURAL — J.A.R.V.I.S.</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-jarvis')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-jarvis')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <div class="jarvis-out" id="jarvisBox">Awaiting neural link...</div>
+    <div id="voiceStatus" style="display:flex;align-items:center;gap:7px;margin-bottom:6px;min-height:18px;">
+      <div id="micDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.15);flex-shrink:0;transition:background .2s,box-shadow .2s;"></div>
+      <span id="micLabel" style="font-size:8px;letter-spacing:1.5px;opacity:0.4;">VOICE OFFLINE</span>
+    </div>
+    <input class="iui" type="text" id="userInput" placeholder="COMMAND J.A.R.V.I.S..."
+      style="margin-bottom:6px;" onkeydown="if(event.key==='Enter')askJarvis()">
+    <div style="display:flex;gap:6px;">
+      <button class="btn" style="flex:1;" onclick="askJarvis()">⬡ UPLINK</button>
+      <button class="btn btn-sm" id="voiceBtn" onclick="toggleVoiceMode()" title="Say 'Hey JARVIS' then your question">🎙 VOICE</button>
+      <button class="btn btn-sm" onclick="clearConversation()">CLR</button>
+    </div>
+    <div style="font-size:8px;letter-spacing:1px;opacity:0.3;margin-top:5px;text-align:center;">SAY "HEY JARVIS" TO ACTIVATE</div>
+  </div>
+  <div class="resize-handle" data-resize="win-jarvis"></div>
+</div>
+
+<div class="window" id="win-clock" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:240px;display:none;">
+  <div class="win-header" data-win="win-clock">
+    <span class="win-title">SYSTEM CLOCK</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-clock')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-clock')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <div id="clockDisplay">--:--:--</div>
+    <div id="dateDisplay">---</div>
+    <div id="tzDisplay" style="font-size:8px;text-align:center;opacity:0.35;margin-top:4px;letter-spacing:1px;"></div>
+  </div>
+  <div class="resize-handle" data-resize="win-clock"></div>
+</div>
+
+<div class="window" id="win-notes" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:280px;display:none;">
+  <div class="win-header" data-win="win-notes">
+    <span class="win-title">DATA SCRAPBOOK</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-notes')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-notes')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <textarea class="iui" id="quickNotes" placeholder="Quick logic notes..."></textarea>
+    <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+      <button class="btn btn-sm" style="flex:1;" onclick="saveNotes()">SAVE</button>
+      <button class="btn btn-sm" onclick="clearNotes()">CLEAR</button>
+      <span id="notesSaved">SAVED ✓</span>
+    </div>
+  </div>
+  <div class="resize-handle" data-resize="win-notes"></div>
+</div>
+
+<div class="window" id="win-stats" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:240px;display:none;">
+  <div class="win-header" data-win="win-stats">
+    <span class="win-title">SYSTEM BIOMETRICS</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-stats')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-stats')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <div class="stat-label"><span>CPU LOAD</span><span id="cpuVal">--</span></div>
+    <div class="bar-bg"><div id="cb" class="bar-fill" style="width:0%;"></div></div>
+    <div class="stat-label" style="margin-top:6px;"><span>THERMALS</span><span id="tempVal">--</span></div>
+    <div class="bar-bg"><div id="tb2" class="bar-fill" style="width:0%;background:#fbbf24;"></div></div>
+    <div class="stat-label" style="margin-top:6px;"><span>MEMORY</span><span id="memVal">--</span></div>
+    <div class="bar-bg"><div id="mb" class="bar-fill" style="width:0%;background:#a78bfa;"></div></div>
+    <div class="stat-label" style="margin-top:6px;"><span>GPU</span><span id="gpuVal">--</span></div>
+    <div class="bar-bg"><div id="gb" class="bar-fill" style="width:0%;background:#fb923c;"></div></div>
+    <div style="font-size:9px;text-align:center;margin-top:10px;opacity:0.4;letter-spacing:2px;">CHIP: OPTIMIZED</div>
+  </div>
+  <div class="resize-handle" data-resize="win-stats"></div>
+</div>
+
+<div class="window" id="win-scanner" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:270px;display:none;">
+  <div class="win-header" data-win="win-scanner">
+    <span class="win-title">VISUAL SENSOR</span>
+    <div class="win-controls">
+      <button class="wc wc-min"   onclick="toggleMin('win-scanner')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-scanner')"></button>
+    </div>
+  </div>
+  <div class="win-body">
+    <lbl>UPLOAD IMAGE FOR ANALYSIS</lbl>
+    <input class="iui" type="file" id="il" accept="image/*">
+    <img id="preview">
+    <button class="btn btn-full" style="margin-top:4px;" onclick="scan()">◉ SCAN DATA</button>
+    <div id="scanStatus" style="font-size:9px;margin-top:6px;opacity:0.6;min-height:14px;letter-spacing:1px;"></div>
+  </div>
+  <div class="resize-handle" data-resize="win-scanner"></div>
+</div>
+
+<div class="window" id="win-spotify" style="top:50px;left:8px;width:calc(100vw - 16px);max-width:340px;height:460px;display:none;">
+  <div class="win-header" data-win="win-spotify">
+    <span class="win-title">SPOTIFY AUDIO MATRIX</span>
+    <div class="win-controls">
+      <button class="wc wc-min" onclick="toggleMin('win-spotify')"></button>
+      <button class="wc wc-close" onclick="hideWin('win-spotify')"></button>
+    </div>
+  </div>
+  <div class="win-body" style="padding:10px;">
+    <iframe
+      style="border-radius:16px;width:100%;height:100%;min-height:420px;border:none;overflow:hidden;"
+      src="https://open.spotify.com/embed/playlist/6Oz4ogKT9HOXeQJnOmp6G1"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture;">
+    </iframe>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn" style="flex:1;" onclick="openSpotifyPlaylist()">OPEN WEB</button>
+      <button class="btn" style="flex:1;" onclick="openSpotifyDesktop()">OPEN APP</button>
+    </div>
+    <div style="margin-top:10px;font-size:8px;letter-spacing:1px;opacity:0.4;text-align:center;">
+      NEURAL AUDIO STREAM ACTIVE
+    </div>
+  </div>
+  <div class="resize-handle" data-resize="win-spotify"></div>
+</div>
+
+<script>
+/* ──────────── PROFILE & AUTH ──────────── */
+let currentUser = '';
+
+function loadProfile() {
+  const profile = JSON.parse(localStorage.getItem('neural_profile') || 'null');
+  const savedKey = localStorage.getItem('neural_gemini_key');
+  if (savedKey) document.getElementById('api-key-input').value = savedKey;
+
+  if (profile && profile.username) {
+    showLogin();
+    document.getElementById('lock-tower-name').textContent = '◈ ' + profile.username.toUpperCase() + ' TOWER';
+  } else {
+    showRegister();
+  }
+}
+
+function showLogin() {
+  document.getElementById('lock-login').style.display = 'flex';
+  document.getElementById('lock-register').style.display = 'none';
+  const profile = JSON.parse(localStorage.getItem('neural_profile') || 'null');
+  if (profile) document.getElementById('lock-tower-name').textContent = '◈ ' + profile.username.toUpperCase() + ' TOWER';
+}
+
+function showRegister() {
+  document.getElementById('lock-register').style.display = 'flex';
+  document.getElementById('lock-login').style.display = 'none';
+  const profile = JSON.parse(localStorage.getItem('neural_profile') || 'null');
+  document.getElementById('has-account-link').style.display = profile ? 'block' : 'none';
+  document.getElementById('lock-tower-name').textContent = '◈ NEURAL TOWER';
+}
+
+function authLogin() {
+  const profile = JSON.parse(localStorage.getItem('neural_profile') || 'null');
+  const pw = document.getElementById('pw-login').value;
+  if (profile && pw === profile.password) {
+    currentUser = profile.username;
+    document.getElementById('lock').style.display = 'none';
+    runBootSequence();
+  } else {
+    showErr('⚠ ACCESS DENIED — RECHECK CODE');
+  }
+}
+
+function authRegister() {
+  const username = document.getElementById('reg-username').value.trim();
+  const pw  = document.getElementById('reg-pw').value;
+  const pw2 = document.getElementById('reg-pw2').value;
+  if (!username)       return showErr('⚠ TOWER NAME REQUIRED');
+  if (username.length < 2) return showErr('⚠ NAME TOO SHORT');
+  if (!pw)             return showErr('⚠ ACCESS CODE REQUIRED');
+  if (pw.length < 3)   return showErr('⚠ CODE TOO SHORT — MIN 3 CHARS');
+  if (pw !== pw2)      return showErr('⚠ CODES DO NOT MATCH');
+  localStorage.setItem('neural_profile', JSON.stringify({ username, password: pw }));
+  currentUser = username;
+  document.getElementById('lock').style.display = 'none';
+  runBootSequence();
+}
+
+function showErr(msg) {
+  const e = document.getElementById('lock-err');
+  e.textContent = msg;
+  setTimeout(() => e.textContent = '', 2800);
+}
+
+/* ──────────── SETTINGS (Gemini API Key) ──────────── */
+function saveSettings() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) {
+    localStorage.setItem('neural_gemini_key', key);
+    const s = document.getElementById('settingsSaved');
+    s.style.opacity = '1';
+    setTimeout(() => s.style.opacity = '0', 2000);
+    setJarvisBox('API key updated. Neural link ready, ' + currentUser + '.');
+  }
+}
+
+function getApiKey() {
+  return localStorage.getItem('neural_gemini_key') || '';
+}
+
+/* ──────────── BOOT SEQUENCE ──────────── */
+function runBootSequence() {
+  const boot = document.getElementById('boot');
+  boot.style.display = 'flex';
+
+  const lines = [
+    { text: '◈ ' + currentUser.toUpperCase() + ' TOWER NEURAL HUD v3.0', cls: 'hi' },
+    { text: '─────────────────────────────────────────────────────', cls: 'dim' },
+    { text: '> AUTHENTICATING NEURAL SIGNATURE...', cls: '' },
+    { text: '  ✓ BIOMETRIC HASH MATCHED — ' + currentUser.toUpperCase(), cls: 'ok' },
+    { text: '> ESTABLISHING SECURE UPLINK...', cls: '' },
+    { text: '  ✓ SATELLITE LINK ACTIVE  [LATENCY: 4ms]', cls: 'ok' },
+    { text: '> LOADING CORE MODULES...', cls: '' },
+    { text: '  ✓ CHRONOGRAPH ENGINE        [LOADED]', cls: 'ok' },
+    { text: '  ✓ OBJECTIVE TRACKER         [LOADED]', cls: 'ok' },
+    { text: '  ✓ NEURAL INTERFACE (JARVIS) [LOADED]', cls: 'ok' },
+    { text: '  ✓ VISUAL SENSOR ARRAY       [LOADED]', cls: 'ok' },
+    { text: '  ✓ BIOMETRIC MONITOR         [LOADED]', cls: 'ok' },
+    { text: '  ✓ DATA SCRAPBOOK            [LOADED]', cls: 'ok' },
+    { text: '  ✓ SYSTEM CLOCK              [LOADED]', cls: 'ok' },
+    { text: '  ✓ SPOTIFY AUDIO MATRIX      [LOADED]', cls: 'ok' },
+    { text: '> CHECKING GEMINI API...', cls: '' },
+    { text: getApiKey() ? '  ✓ GEMINI KEY FOUND — J.A.R.V.I.S. READY' : '  ⚠ NO GEMINI KEY — OPEN CONFIG TO ACTIVATE', cls: getApiKey() ? 'ok' : 'warn' },
+    { text: '─────────────────────────────────────────────────────', cls: 'dim' },
+    { text: '  WELCOME BACK, ' + currentUser.toUpperCase() + '. ALL SYSTEMS NOMINAL.', cls: 'hi' },
+    { text: '', cls: '' },
+  ];
+
+  const terminal = document.getElementById('boot-terminal');
+  terminal.innerHTML = '';
+
+  let delay = 0;
+  lines.forEach((line, i) => {
+    const el = document.createElement('div');
+    el.className = 'boot-line' + (line.cls ? ' ' + line.cls : '');
+    el.textContent = line.text || '\u00a0';
+    terminal.appendChild(el);
+    const gap = i === 0 ? 0 : line.text.startsWith('  ✓') || line.text.startsWith('  ⚠') ? 80 : line.text.startsWith('─') ? 50 : 300;
+    delay += gap;
+    setTimeout(() => el.classList.add('show'), delay);
+  });
+
+  delay += 100;
+  setTimeout(() => {
+    const cur = document.createElement('div');
+    cur.className = 'boot-line show';
+    cur.innerHTML = '> <span id="boot-cursor"></span>';
+    terminal.appendChild(cur);
+  }, delay);
+
+  delay += 200;
+  setTimeout(() => {
+    document.getElementById('boot-bar-wrap').style.display = 'block';
+    const fill = document.getElementById('boot-bar-fill');
+    let pct = 0;
+    const barIntr = setInterval(() => {
+      pct += 2;
+      fill.style.width = pct + '%';
+      if (pct >= 100) { clearInterval(barIntr); setTimeout(launchHUD, 400); }
+    }, 30);
+  }, delay);
+}
+
+function launchHUD() {
+  document.getElementById('boot').style.display = 'none';
+  applyUsername(currentUser);
+  initBiometrics();
+  initClock();
+  // Mobile: cascade the default-visible windows so they don't fully overlap
+  const vw = window.innerWidth;
+  const offset = Math.min(24, vw * 0.06);
+  ['win-timer'].forEach((id, i) => {
+    const w = document.getElementById(id);
+    if (w && w.style.display !== 'none') {
+      w.style.top  = (50 + i * offset) + 'px';
+      w.style.left = (8  + i * offset) + 'px';
+    }
+  });
+  if (!getApiKey()) {
+    setTimeout(() => {
+      toggleWin('win-settings');
+      setJarvisBox('⚠ No Gemini API key found. Open CONFIG to add one.');
+    }, 500);
+  }
+}
+
+function applyUsername(name) {
+  const upper = name.toUpperCase();
+  document.getElementById('tb-tower-name').textContent = '◈ ' + upper + ' TOWER';
+  document.title = upper + ' TOWER • MODULAR HUD';
+  document.getElementById('jarvisBox').textContent = 'Awaiting neural link, ' + name + '...';
+}
+
+/* ──────────── WINDOW MANAGEMENT ──────────── */
+function focusWin(id) {
+  document.querySelectorAll('.window').forEach(w => { w.style.zIndex = 100; w.classList.remove('focused'); });
+  const w = document.getElementById(id);
+  if (w) { w.style.zIndex = 200; w.classList.add('focused'); }
+}
+
+function hideWin(id) {
+  const w = document.getElementById(id);
+  if (w) w.style.display = 'none';
+  const tb = document.getElementById('tb-' + id);
+  if (tb) tb.classList.add('off');
+}
+
+function toggleWin(id) {
+  const w = document.getElementById(id);
+  if (!w) return;
+  if (w.style.display === 'none') {
+    w.style.display = '';
+    focusWin(id);
+    const tb = document.getElementById('tb-' + id);
+    if (tb) tb.classList.remove('off');
+  } else {
+    hideWin(id);
+  }
+}
+
+function toggleMin(id) { document.getElementById(id)?.classList.toggle('minimized'); }
+function setOpacity(v) { document.querySelectorAll('.window').forEach(w => w.style.opacity = v); }
+
+const defaultLayouts = (function() {
+  const vw = window.innerWidth;
+  const W  = Math.min(vw - 16, 320); // default window width
+  const cx = Math.round((vw - W) / 2);
+  return {
+    'win-timer':    { top:'50px',  left: cx+'px',               width: W+'px', height:'' },
+    'win-tasks':    { top:'50px',  left: '8px',                 width: Math.min(vw-16,260)+'px', height:'' },
+    'win-jarvis':   { top:'50px',  left: Math.max(8,vw-Math.min(vw-16,300)-8)+'px', width: Math.min(vw-16,300)+'px', height:'' },
+    'win-clock':    { top:'50px',  left: cx+'px',               width: Math.min(vw-16,240)+'px', height:'' },
+    'win-notes':    { top:'50px',  left: '8px',                 width: Math.min(vw-16,280)+'px', height:'' },
+    'win-stats':    { top:'50px',  left: '8px',                 width: Math.min(vw-16,240)+'px', height:'' },
+    'win-scanner':  { top:'50px',  left: cx+'px',               width: Math.min(vw-16,270)+'px', height:'' },
+    'win-spotify':  { top:'50px',  left: cx+'px',               width: Math.min(vw-16,340)+'px', height:'460px', display:'none' },
+    'win-settings': { top:'50px',  left: cx+'px',               width: Math.min(vw-16,320)+'px', height:'', display:'none' },
+  };
+})();
+
+function resetLayout() {
+  Object.entries(defaultLayouts).forEach(([id, pos]) => {
+    const w = document.getElementById(id); if (!w) return;
+    w.style.display = pos.display || '';
+    w.classList.remove('minimized');
+    w.style.transform = '';
+    w.style.right = ''; w.style.bottom = '';
+    ['top','left','width','height'].forEach(k => w.style[k] = pos[k] || '');
+    const tb = document.getElementById('tb-' + id);
+    if (tb) tb.classList[pos.display === 'none' ? 'add' : 'remove']('off');
+  });
+}
+
+/* ──────────── DRAGGING (touch + mouse) ──────────── */
+(function () {
+  let drag = null, ox = 0, oy = 0;
+
+  function startDrag(win, clientX, clientY) {
+    focusWin(win.id);
+    drag = win;
+    win.style.transform = 'none';
+    const r = win.getBoundingClientRect();
+    win.style.left = r.left + 'px'; win.style.top = r.top + 'px';
+    win.style.right = ''; win.style.bottom = '';
+    ox = clientX - r.left; oy = clientY - r.top;
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!drag) return;
+    const maxX = window.innerWidth  - drag.offsetWidth;
+    const maxY = window.innerHeight - drag.offsetHeight;
+    drag.style.left = Math.max(0, Math.min(maxX, clientX - ox)) + 'px';
+    drag.style.top  = Math.max(44, Math.min(maxY, clientY - oy)) + 'px';
+  }
+
+  // Mouse
+  document.addEventListener('mousedown', e => {
+    const header = e.target.closest('.win-header');
+    if (!header || e.target.classList.contains('wc')) return;
+    const win = header.closest('.window'); if (!win) return;
+    startDrag(win, e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', () => { drag = null; });
+
+  // Touch
+  document.addEventListener('touchstart', e => {
+    const header = e.target.closest('.win-header');
+    if (!header || e.target.classList.contains('wc')) return;
+    const win = header.closest('.window'); if (!win) return;
+    const t = e.touches[0];
+    startDrag(win, t.clientX, t.clientY);
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (!drag) return;
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => { drag = null; });
+})();
+
+/* ──────────── RESIZING (touch + mouse) ──────────── */
+(function () {
+  let resizing = null, sx, sy, sw, sh;
+
+  function startResize(handle, clientX, clientY) {
+    resizing = document.getElementById(handle.dataset.resize); if (!resizing) return;
+    sx = clientX; sy = clientY;
+    sw = resizing.offsetWidth; sh = resizing.offsetHeight;
+    focusWin(resizing.id);
+  }
+  function doResize(clientX, clientY) {
+    if (!resizing) return;
+    resizing.style.width  = Math.max(160, sw + clientX - sx) + 'px';
+    resizing.style.height = Math.max(80,  sh + clientY - sy) + 'px';
+  }
+
+  // Mouse
+  document.addEventListener('mousedown', e => {
+    const handle = e.target.closest('.resize-handle'); if (!handle) return;
+    startResize(handle, e.clientX, e.clientY);
+    e.preventDefault(); e.stopPropagation();
+  });
+  document.addEventListener('mousemove', e => doResize(e.clientX, e.clientY));
+  document.addEventListener('mouseup', () => { resizing = null; });
+
+  // Touch
+  document.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.resize-handle'); if (!handle) return;
+    const t = e.touches[0];
+    startResize(handle, t.clientX, t.clientY);
+    e.preventDefault(); e.stopPropagation();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (!resizing) return;
+    const t = e.touches[0];
+    doResize(t.clientX, t.clientY);
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => { resizing = null; });
+})();
+
+/* ──────────── TIMER ──────────── */
+let timerSec = 25 * 60, timerTotal = 25 * 60, timerRunning = false, timerIntr = null;
+
+function toggleTimer() {
+  if (timerRunning) {
+    clearInterval(timerIntr);
+    document.getElementById('sb').textContent = 'START MISSION';
+  } else {
+    timerIntr = setInterval(tickTimer, 1000);
+    document.getElementById('sb').textContent = 'PAUSE';
+  }
+  timerRunning = !timerRunning;
+}
+
+function tickTimer() {
+  timerSec--;
+  updateTimerDisplay();
+  if (timerSec <= 0) {
+    clearInterval(timerIntr); timerRunning = false;
+    document.getElementById('sb').textContent = 'START MISSION';
+    document.title = currentUser.toUpperCase() + ' TOWER — SESSION COMPLETE';
+    setTimeout(() => document.title = currentUser.toUpperCase() + ' TOWER • HUD', 3000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerIntr); timerRunning = false;
+  timerSec = timerTotal;
+  updateTimerDisplay();
+  document.getElementById('sb').textContent = 'START MISSION';
+}
+
+function setDuration() {
+  const v = parseInt(document.getElementById('durInput').value) || 25;
+  timerTotal = v * 60; resetTimer();
+}
+
+function updateTimerDisplay() {
+  const sec = Math.abs(timerSec);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  document.getElementById('td').textContent =
+    (timerSec < 0 ? '-' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  const pct = Math.max(0, (timerSec / timerTotal) * 100);
+  const bar = document.getElementById('timerBar');
+  bar.style.width = pct + '%';
+  const td = document.getElementById('td');
+  td.className = 'timer-big' + (pct < 10 ? ' danger' : pct < 25 ? ' warn' : '');
+  bar.style.background = pct < 10 ? '#f87171' : pct < 25 ? '#fbbf24' : 'var(--glow)';
+}
+
+/* ──────────── TASKS ──────────── */
+let taskTotal = 0, taskDone = 0;
+
+function addTask() {
+  const inp = document.getElementById('taskInput');
+  const v = inp.value.trim(); if (!v) return;
+  taskTotal++;
+  const d = document.createElement('div'); d.className = 'task-item';
+  d.innerHTML = `<span style="flex:1;">› ${v}</span><button class="btn btn-sm" onclick="completeTask(this)">OK</button>`;
+  document.getElementById('taskList').appendChild(d);
+  inp.value = ''; updateProgress();
+}
+
+function completeTask(btn) {
+  btn.closest('.task-item').classList.add('done');
+  btn.disabled = true;
+  taskDone++; updateProgress();
+}
+
+function clearTasks() {
+  document.querySelectorAll('.task-item.done').forEach(el => {
+    taskTotal--; taskDone--; el.remove();
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const p = taskTotal === 0 ? 0 : Math.round((taskDone / taskTotal) * 100);
+  document.getElementById('focusBar').style.width = p + '%';
+  document.getElementById('taskPct').textContent = taskDone + ' / ' + taskTotal;
+}
+
+/* ──────────── JARVIS (Gemini API Fixes) ──────────── */
+let jarvisConversation = [];
+
+async function askJarvis(overrideText) {
+  const key = getApiKey();
+  if (!key) {
+    setJarvisBox('⚠ NO API KEY — OPEN CONFIG (⚙) TO ADD YOUR GEMINI KEY.');
+    toggleWin('win-settings');
+    return;
+  }
+
+  const inp = document.getElementById('userInput');
+  const box = document.getElementById('jarvisBox');
+  const q = overrideText || inp.value.trim();
+  if (!q) return;
+
+  box.textContent = 'UPLINKING TO GEMINI SATELLITE...';
+  if (!overrideText) inp.value = '';
+
+  const systemPrompt = `You are J.A.R.V.I.S., the tactical AI for ${currentUser} Tower. Address the user as "${currentUser}". Respond in a sharp, confident, slightly British manner — like the Marvel JARVIS AI. Be concise but informative. Always end with a brief tactical sign-off.`;
+
+  // Explicit dynamic model contents structural adjustments
+  const contents = [];
+  for (const msg of jarvisConversation) {
+    contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
+  }
+  contents.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nUser says: ' + q }] });
+
+  try {
+    // Configured model endpoint setup
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      box.textContent = 'UPLINK ERROR ' + res.status + '. Check your API key in CONFIG.';
+      return;
+    }
+
+    const d = await res.json();
+    const reply = d.candidates?.[0]?.content?.parts?.[0]?.text || 'UPLINK ERROR — empty response.';
+
+    jarvisConversation.push({ role: 'user', content: q });
+    jarvisConversation.push({ role: 'assistant', content: reply });
+    if (jarvisConversation.length > 20) jarvisConversation = jarvisConversation.slice(-20);
+
+    box.textContent = reply;
+    if (voiceActive) speak(reply);
+
+  } catch (err) {
+    box.textContent = 'UPLINK FAILED — ' + err.message;
+  }
+}
+
+function setJarvisBox(t) { document.getElementById('jarvisBox').textContent = t; }
+
+function clearConversation() {
+  jarvisConversation = [];
+  setJarvisBox('Neural link reset. Awaiting command, ' + currentUser + '.');
+}
+
+/* ──────────── VOICE COMMAND SYSTEM ──────────── */
+let voiceActive = false, recognition = null, voiceBusy = false;
+
+function toggleVoiceMode() { voiceActive ? stopVoiceMode() : startVoiceMode(); }
+
+function startVoiceMode() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setJarvisBox('VOICE UPLINK FAILED — Use Chrome or Edge for speech support.'); return; }
+  voiceActive = true; voiceBusy = false;
+  setupRecognition(SR);
+  setMicState('listening');
+  setJarvisBox('🎙 Voice online. Say "Hey JARVIS, [your question]" — all in one breath.');
+}
+
+function setupRecognition(SR) {
+  if (recognition) { try { recognition.abort(); } catch(e){} }
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (event) => {
+    let interim = '', final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (interim) document.getElementById('userInput').value = interim;
+    if (!final) return;
+    const fb = final.trim().toLowerCase();
+    const hasWake = /jarvis/.test(fb);
+    if (hasWake) {
+      let command = fb.replace(/.*jarvis\s*/i, '').trim();
+      if (command.length > 2) {
+        document.getElementById('userInput').value = command;
+        fireVoiceCommand(command);
+      } else {
+        setMicState('awake');
+        setJarvisBox('Yes, ' + currentUser + '? Go ahead...');
+        document.getElementById('userInput').value = '';
+        recognition._waitingForCommand = true;
+        clearTimeout(recognition._commandTimer);
+        recognition._commandTimer = setTimeout(() => {
+          if (recognition?._waitingForCommand) {
+            recognition._waitingForCommand = false;
+            setMicState('listening');
+            setJarvisBox('Command window timed out. Say "Hey JARVIS [question]" again.');
+          }
+        }, 7000);
+      }
+    } else if (recognition._waitingForCommand) {
+      recognition._waitingForCommand = false;
+      clearTimeout(recognition._commandTimer);
+      const command = fb.trim();
+      if (command.length > 2) { document.getElementById('userInput').value = command; fireVoiceCommand(command); }
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setJarvisBox('MIC BLOCKED — allow microphone in browser settings, then try again.');
+      stopVoiceMode(); return;
+    }
+  };
+
+  recognition.onend = () => {
+    if (voiceActive && !voiceBusy) setTimeout(() => { if (voiceActive) { try { recognition.start(); } catch(e){} } }, 150);
+  };
+
+  recognition.start();
+}
+
+async function fireVoiceCommand(command) {
+  if (voiceBusy) return;
+  voiceBusy = true;
+  setMicState('processing');
+  setJarvisBox('Processing: "' + command + '"...');
+  try { recognition.abort(); } catch(e){}
+  await askJarvis(command);
+  const waitForTTS = () => new Promise(resolve => {
+    if (!window.speechSynthesis || !speechSynthesis.speaking) { resolve(); return; }
+    const check = setInterval(() => { if (!speechSynthesis.speaking) { clearInterval(check); resolve(); } }, 200);
+    setTimeout(resolve, 6000);
+  });
+  await waitForTTS();
+  voiceBusy = false;
+  if (voiceActive) { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; setupRecognition(SR); setMicState('listening'); }
+}
+
+function stopVoiceMode() {
+  voiceActive = false; voiceBusy = false;
+  if (recognition) { try { recognition.abort(); } catch(e){} recognition = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  setMicState('off');
+  setJarvisBox('Voice mode offline.');
+  document.getElementById('userInput').value = '';
+}
+
+function setMicState(state) {
+  const dot = document.getElementById('micDot');
+  const label = document.getElementById('micLabel');
+  const btn = document.getElementById('voiceBtn');
+  const map = {
+    off:        ['rgba(255,255,255,0.15)', 'none',             'VOICE OFFLINE',  '', '0.4'],
+    listening:  ['#38bdf8', '0 0 12px #38bdf8', 'LISTENING...', 'color:#38bdf8;border-color:#38bdf8;', '1'],
+    awake:      ['#4ade80', '0 0 18px #4ade80', 'SPEAK NOW',    'color:#4ade80;border-color:#4ade80;', '1'],
+    processing: ['#fbbf24', '0 0 12px #fbbf24', 'PROCESSING...','color:#fbbf24;border-color:#fbbf24;', '1'],
+  };
+  const [color, shadow, text, btnCss, opacity] = map[state] || map.off;
+  if(dot) { dot.style.background = color; dot.style.boxShadow = shadow; }
+  if(label) { label.textContent = text; label.style.opacity = opacity; }
+  if (btn) btn.style.cssText = btnCss;
+}
+
+/* ──────────── SCANNER (Gemini Vision) ──────────── */
+document.getElementById('il').onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const img = document.getElementById('preview');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  r.readAsDataURL(f);
+};
+
+async function scan() {
+  const key = getApiKey();
+  if (!key) {
+    document.getElementById('scanStatus').textContent = '⚠ NO API KEY — OPEN CONFIG';
+    toggleWin('win-settings'); return;
+  }
+  const f = document.getElementById('il').files[0]; if (!f) return;
+  document.getElementById('scanStatus').textContent = 'SCANNING...';
+  const r = new FileReader();
+  r.onload = async () => {
+    const b64 = r.result.split(',')[1];
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: `You are J.A.R.V.I.S. analyzing a visual sensor feed for ${currentUser} Tower. Be sharp, tactical, concise.` },
+                { inline_data: { mime_type: f.type, data: b64 } }
+              ]
+            }]
+          })
+        }
+      );
+      const d = await res.json();
+      const reply = d.candidates?.[0]?.content?.parts?.[0]?.text || 'SCAN ERROR — no analysis returned.';
+      setJarvisBox(reply);
+      document.getElementById('scanStatus').textContent = 'SCAN COMPLETE ✓';
+    } catch (err) {
+      document.getElementById('scanStatus').textContent = 'SCAN FAILED — ' + err.message;
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+/* ──────────── NOTES ──────────── */
+function saveNotes() {
+  try { localStorage.setItem('neural-notes', document.getElementById('quickNotes').value); } catch(e){}
+  const s = document.getElementById('notesSaved');
+  s.style.opacity = '1';
+  setTimeout(() => s.style.opacity = '0', 1800);
+}
+function clearNotes() {
+  document.getElementById('quickNotes').value = '';
+  try { localStorage.removeItem('neural-notes'); } catch(e){}
+}
+(function () {
+  try { const n = localStorage.getItem('neural-notes'); if (n) document.getElementById('quickNotes').value = n; } catch(e){}
+})();
+
+/* ──────────── BIOMETRICS ──────────── */
+function initBiometrics() {
+  function tick() {
+    const cpu  = Math.floor(Math.random() * 20 + 8);
+    const temp = Math.floor(Math.random() * 10 + 32);
+    const mem  = Math.floor(Math.random() * 20 + 40);
+    const gpu  = Math.floor(Math.random() * 15 + 5);
+    document.getElementById('cb').style.width  = cpu  + '%'; document.getElementById('cpuVal').textContent  = cpu  + '%';
+    document.getElementById('tb2').style.width = temp + '%'; document.getElementById('tempVal').textContent = temp + '°C';
+    document.getElementById('mb').style.width  = mem  + '%'; document.getElementById('memVal').textContent  = mem  + '%';
+    document.getElementById('gb').style.width  = gpu  + '%'; document.getElementById('gpuVal').textContent  = gpu  + '%';
+  }
+  tick(); setInterval(tick, 4000);
+}
+
+/* ──────────── CLOCK ──────────── */
+function initClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('clockDisplay').textContent = now.toLocaleTimeString('en-GB', { hour12: false });
+    document.getElementById('dateDisplay').textContent  = now.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' }).toUpperCase();
+    document.getElementById('tzDisplay').textContent    = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+/* ──────────── INIT ──────────── */
+document.addEventListener('DOMContentLoaded', loadProfile);
+</script>
+
+<script>
+/*---------------spotify----------*/
+function openSpotifyPlaylist() {
+  window.open('https://open.spotify.com/playlist/6Oz4ogKT9HOXeQJnOmp6G1', '_blank');
+}
+
+function openSpotifyDesktop() {
+  window.location.href = 'spotify:playlist:6Oz4ogKT9HOXeQJnOmp6G1';
+}
+
+/* ========= UPDATED AUDIO ENGINE ========= */
+let isMuted = false;
+
+const sounds = {
+  boot: new Audio('./sounds/boot.mp3'),
+  click: new Audio('./sounds/click.mp3'),
+  hover: new Audio('./sounds/hover.mp3'),
+  open: new Audio('./sounds/open.mp3'),
+  close: new Audio('./sounds/close.mp3'),
+  success: new Audio('./sounds/success.mp3'),
+  alert: new Audio('./sounds/alert.mp3'),
+  typing: new Audio('./sounds/typing.mp3'),
+  welcome: new Audio('./sounds/welcome.mp3')
+};
+
+/* preload safely */
+Object.values(sounds).forEach(sound => {
+  sound.preload = 'auto';
+});
+
+/* ========= PLAY FUNCTION ========= */
+function playSound(name, volume = 0.5) {
+  if (isMuted) return; 
+  const sound = sounds[name];
+  if (!sound) return;
+
+  try {
+    sound.pause();
+    sound.currentTime = 0;
+    sound.volume = volume;
+    sound.play().catch(err => {
+      console.log('Audio playback blocked or file missing:', err.message);
+    });
+  } catch(e) {
+    console.log('Audio engine fallback caught anomaly.');
+  }
+}
+
+/* ========= SPEECH ========= */
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  if (isMuted) return; 
+
+  try {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.82;
+    utter.pitch = 0.72;
+    utter.volume = 1;
+
+    const voices = speechSynthesis.getVoices();
+    const preferred =
+      voices.find(v => v.name.includes('Daniel')) ||
+      voices.find(v => v.name.includes('Google UK English Male')) ||
+      voices.find(v => v.lang === 'en-GB');
+
+    if (preferred) utter.voice = preferred;
+    speechSynthesis.speak(utter);
+  } catch (e) {
+    console.log("Speech engine failure in WebView environment:", e);
+  }
+}
+
+/* ========= BUTTON AUDIO ========= */
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tb-btn, .btn, .wc').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playSound('click', 0.2);
+    });
+  });
+});
+
+/* ========= GLOBAL MUTE TOGGLE ========= */
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('tb-mute');
+  if (isMuted) {
+    if (window.speechSynthesis) speechSynthesis.cancel(); 
+    btn.textContent = '🔇 MUTED';
+    btn.style.color = '#f87171';
+  } else {
+    btn.textContent = '🔊 AUDIO';
+    btn.style.color = 'var(--glow)';
+    playSound('click', 0.2);
+  }
+}
+
+/* ========= BOOT SOUND ========= */
+const oldRunBoot = runBootSequence;
+runBootSequence = function () {
+  playSound('boot', 0.8);
+  oldRunBoot();
+};
+
+/* ========= HUD START ========= */
+const oldLaunch = launchHUD;
+launchHUD = function () {
+  oldLaunch();
+  setTimeout(() => {
+    playSound('welcome', 1);
+  }, 800);
+};
+
+/* ========= WINDOW AUDIO ========= */
+const oldToggle = toggleWin;
+toggleWin = function(id) {
+  const w = document.getElementById(id);
+  if (!w) return;
+
+  if (w.style.display === 'none') {
+    playSound('open', 0.3);
+  } else {
+    playSound('close', 0.3);
+  }
+  oldToggle(id);
+};
+</script>
+</body>
+</html>

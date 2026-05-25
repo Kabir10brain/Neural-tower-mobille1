@@ -1,0 +1,13 @@
+# Node dependencies
+node_modules/
+
+# Mac system junk
+.DS_Store
+**/.DS_Store
+
+# Capacitor & Native iOS build paths
+/ios/App/Pods/
+/ios/App/public/
+/ios/App/CapApp-SPM/.build/
+DerivedData/
+build/
