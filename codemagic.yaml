@@ -28,4 +28,4 @@ workflows:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
     artifacts:
-      - ios/App/build/Release-iphonesimulator/**/*.app
+      - ios/App/build/Debug-iphonesimulator/**/*.app
