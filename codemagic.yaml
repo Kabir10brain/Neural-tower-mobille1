@@ -15,9 +15,16 @@ workflows:
       - name: Capacitor Sync
         script: |
           npx cap sync ios
-      - name: Build Xcode Project
+      - name: Build Xcode Project for Simulator
         script: |
           cd ios/App
-          xcodebuild build -scheme App -allowProvisioningUpdates
+          xcodebuild build \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
     artifacts:
-      - ios/App/build/Outputs/**/*.ipa
+      - ios/App/build/Release-iphonesimulator/**/*.app
