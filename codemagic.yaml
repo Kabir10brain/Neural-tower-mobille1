@@ -1,4 +1,4 @@
-cat << 'EOF' > codemagic.yaml
+
 workflows:
   ios-capacitor-workflow:
     name: Neural Tower iOS Workflow
@@ -24,10 +24,9 @@ workflows:
             -scheme App \
             -sdk iphonesimulator \
             -configuration Debug \
-            CONFIGURATION_BUILD_DIR=$TARGET_BUILD_DIR \
+            CONFIGURATION_BUILD_DIR=build/Debug-iphonesimulator \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
     artifacts:
-      - ios/App/*.app
-EOF
+      - ios/App/build/Debug-iphonesimulator/*.app
